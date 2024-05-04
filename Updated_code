@@ -1,0 +1,400 @@
+
+var lines = 0;
+var high_score = 0;
+var speed = 500;
+var board = [];
+var rows = 20;
+var score = 0;
+var columns = 10;
+var i = 0;
+var new_block = 0;
+var start_time = millis();
+var last_move = start_time;
+var last_press = start_time;
+var last_down = start_time;
+var gameover = false;
+var currentScene = 0;
+// our bitmojits that will be used for the program.
+
+
+var Button = function(config) {
+    this.x = config.x || 0;
+    this.y = config.y || 0;
+    this.width = config.width || 150;
+    this.height = config.height || 50;
+    this.label = config.label || "Click";
+    this.onClick = config.onClick || function() {};
+};
+
+Button.prototype.draw = function() {
+    fill(0, 0, 255);
+    rect(this.x, this.y, this.width, this.height, 25);
+    fill(255, 255, 255);
+    textSize(19);
+    textAlign(LEFT, TOP);
+    text(this.label, this.x + 25, this.y + this.height / 4);
+};
+
+Button.prototype.isMouseInside = function() {
+    return mouseX > this.x &&
+        mouseX < (this.x + this.width) &&
+        mouseY > this.y &&
+        mouseY < (this.y + this.height);
+};
+
+Button.prototype.handleMouseClick = function() {
+    if (this.isMouseInside()) {
+        this.onClick();
+    }
+};
+
+var btn1 = new Button({
+    x: 130,
+    y: 282,
+    label: "Start Game",
+    onClick: function() {
+        currentScene = 1;
+        score = 0;
+    }
+});
+
+var btn2 = new Button({
+    x: 115,
+    y: 250,  // Ensure this is positioned differently if it overlaps with btn1
+    label: "Play Again",
+    onClick: function() {
+        // Reset the game board
+        board = [];
+        for (var i = 0; i < rows; i++) {
+            var newRow = [];
+            for (var j = 0; j < columns; j++) {
+                newRow.push(0);
+            }
+            board.push(newRow);
+        }
+        // Reset game variables
+        score = 0;
+        lines = 0;
+        gameover = false;
+        currentScene = 1;  // Switch back to the game scene
+    }
+});
+
+
+mouseClicked = function() {
+    if (currentScene === 0) {
+        btn1.handleMouseClick();
+    } else if (currentScene === 2) {
+        btn2.handleMouseClick();  // Handle clicks when in the Game Over scene
+    }
+};
+
+
+// splash screen
+var drawScene0 = function() {
+    background(16, 87, 81);
+    fill(255, 255, 255);
+
+    if (currentScene === 0) {
+        fill(0, 0, 255);
+        rect(64, 35, 279, 67);
+        rect(168, 103, 68, 61);
+        fill(255, 255, 255);
+        textSize(40);
+        textFont(createFont("Times new Roman Bold Italic"));
+        text("TETRIS.Project", 74, 44);
+        btn1.draw();
+    }
+};
+var drawScene2 = function () {
+    currentScene = 2;
+    background(0, 0, 0);
+    textSize(30);
+    fill(255, 255, 255);
+    text("Game Over", 103, 100);
+    text("Your Score: " + score, 100, 150);
+    btn2.draw();
+};
+
+
+
+// loop that will be used to push the p
+while (i < rows) {
+    // local variables to make the loop
+    var j = 0;
+    var row = [];
+    while (j < columns) {
+        row.push(0);
+        j++;
+    }
+    board.push(row);
+    i++;
+}
+//it will remove the blocks by using a reverse loop. 
+var removeCompletedRows = function () {
+    for (var i = rows - 1; i >= 0; i--) {
+        var isRowComplete = true;
+        for (var j = 0; j < columns; j++) {
+            if (board[i][j] === 0) {
+                isRowComplete = false;
+                break;
+            }
+        }
+
+        if (isRowComplete) {
+            // Remove the complete row and shift the rows above it down
+            for (var k = i; k > 0; k--) {
+                for (var j = 0; j < columns; j++) {
+                    board[k][j] = board[k - 1][j];
+                }
+            }
+            // Add a new empty row at the top
+            for (var j = 0; j < columns; j++) {
+                board[0][j] = 0;
+            }
+
+            score += 100;
+            lines++;
+            
+        }
+         
+    }
+};
+
+// Randomize where the blocks will fall.
+var hint_block = [floor(random(0, 7)), 0, floor(random(0, 7)), floor(random(0, 4))];
+var block = [floor(random(0, 7)), 0, floor(random(0, 7))];
+
+
+// pixles used to create the blocks.
+var get_shape = function (block) {
+    strokeWeight(1);
+    if (block[2] === 0) {
+        return [[0, 1]]; // Single block
+    } else if (block[2] === 1) {
+        return [[0, 0], [0, 1], [1, 0], [1, 1]]; // Square block
+    } else if (block[2] === 2) {
+        if (block[3] === 0 || block[3] === 2) {
+            return [[0, 0], [0, 1], [0, 2], [0, 3]]; // Vertical line
+        } else {
+            return [[0, 0], [1, 0], [2, 0], [3, 0]]; // Horizontal line
+        }
+    } else if (block[2] === 3) {
+        if (block[3] === 0) {
+            return [[0, 0], [0, 1], [0, 2], [1, 2]]; // L-shape normal
+        } else if (block[3] === 1) {
+            return [[0, 0], [1, 0], [2, 0], [0, 1]]; // L-shape rotated
+        } else if (block[3] === 2) {
+            return [[0, 0], [1, 0], [1, 1], [1, 2]]; // Reverse L
+        } else {
+            return [[0, 1], [1, 1], [2, 1], [2, 0]]; // Reverse L rotated
+        }
+    } else if (block[2] === 4) {
+        if (block[3] === 0 || block[3] === 2) {
+            return [[0, 1], [1, 1], [1, 0], [2, 0]]; // Z-shape
+        } else {
+            return [[0, 0], [0, 1], [1, 1], [1, 2]]; // Z-shape rotated
+        }
+    } else if (block[2] === 5) {
+        return [[0, 0], [1, 0], [1, 1], [2, 1]]; // S-shape
+    } else if (block[2] === 6) {
+        if (block[3] === 0 || block[3] === 2) {
+            return [[1, 0], [0, 1], [1, 1], [2, 1]]; // T-shape
+        } else {
+            return [[0, 1], [1, 0], [1, 1], [1, 2]]; // T-shape rotated
+        }
+    } else {
+        return [[0, 0]]; // Default block
+    }
+};
+
+var block_shape = function (block) {
+    var shape = get_shape(block);
+    var i = 0;
+
+    stroke(0, 0, 0);
+
+    while (i < shape.length) {
+        rect((block[0] + shape[i][0]) * 20, (block[1] + shape[i][1]) * 20, 20, 20);
+        i++;
+    }
+
+    // Reset the stroke color after the loop
+    noStroke();
+};
+
+var move_shape = function (board, block) {
+    if (millis() > last_move + speed) {
+        block[1] += 1;
+        if(keyIsPressed && keyCode === DOWN){
+            speed = 30;
+            
+        }
+        else{
+            speed = 500;
+        }
+        last_move = millis();
+        if (speed > 75) {
+            speed -= 0.1;
+        }
+         if (block[1] <= 0) {
+             gameover = true;
+            drawScene2();
+    }
+    }
+};
+//the loop for the tetris baord
+var drawBoard = function (board) {
+    var i = 0;
+    while (i < 20) {
+        var j = 0;
+
+        // Set the stroke color before the loop
+        stroke(0, 0, 0);
+
+        while (j < 10) {
+            if (board[i][j] === 1) {
+                rect(j * 20, i * 20, 20, 20);
+            }
+            j++;
+        }
+        line(205, 428, 205, -20);
+        noStroke();
+        i++;
+    }
+    
+};
+
+
+
+//colliosn for when the blocks land on each other.
+var collision = function (block, board) {
+    var shape = get_shape(block);
+    var colliding = false;
+
+    for (var i = 0; i < shape.length; i++) {
+        var row = block[1] + shape[i][1] + 1;
+        var col = block[0] + shape[i][0];
+        if (row >= rows || board[row][col] === 1) {
+            colliding = true;
+            break;
+        }
+    }
+
+    if (colliding) {
+        for (var i = 0; i < shape.length; i++) {
+            var finalRow = block[1] + shape[i][1];
+            var finalCol = block[0] + shape[i][0];
+            board[finalRow][finalCol] = 1;
+            if (finalRow === 0) {
+                gameover = true; // Set game over if any block reaches the first row
+            }
+        }
+        new_block = 1;
+        removeCompletedRows();
+    }
+    return board;
+};
+
+//the varable was made to five the player what next block will be coming.
+var draw_hint = function (hint_block) {
+    fill(0, 0, 0);
+    textSize(20);
+    text("next block", 227, 300); // Adjusted coordinates
+    fill(0, 9, 255);
+    block_shape([13, 16, hint_block[2], hint_block[3]]); // Adjusted block position
+};
+
+var to_move_left = false;
+var to_move_right = false;
+// ket function for the blocks to be moved 
+var keyPressed = function () {
+    if (keyCode === LEFT && millis() > last_press + 250) {
+        to_move_left = true;
+        last_press = millis();
+    } else if (keyCode === RIGHT && millis() > last_press + 250) {
+        to_move_right = true;
+        last_press = millis();
+    }
+};
+
+var play = 1;
+//it is what will be drawn onto the screen and what will be called
+var drawScene1 = function () {
+    currentScene = 1;
+    if (play === 1) {
+        if (new_block === 1) {
+            block = hint_block;
+            hint_block = [round(random(3, 6)), 0, floor(random(0, 3)), floor(random(0, 4))];
+            new_block = 0; // Reset new_block
+        }
+        // added style for the program
+        background(47, 206, 214);
+        fill(0, 0, 0);
+        textSize(18);
+        text("Score: " + score, 261, 20);
+    
+        draw_hint(hint_block);
+        line(200, 0, 200, 400);
+        fill(0, 9, 255);
+        block_shape(block);
+        move_shape(board, block);
+        board = collision(block, board);
+        fill(0, 9, 255);
+        drawBoard(board);
+
+        if (to_move_left) {
+            var i = 0;
+            var shape = get_shape(block);
+            var moveable_left = 1;
+            while (i < shape.length) {
+                if (board[block[1] + shape[i][1]][block[0] - 1 + shape[i][0]] === 1) {
+                    moveable_left = 0;
+                }
+                i++;
+            }
+            if (moveable_left === 1) {
+                if (block[0] > 0) {
+                    block[0] -= 1;
+                }
+            }
+            to_move_left = false;
+        }
+
+        if (to_move_right) {
+            var i = 0;
+            var shape = get_shape(block);
+            var moveable_right = 1;
+            while (i < shape.length) {
+                if (board[block[1] + shape[i][1]][block[0] + 1 + shape[i][0]] === 1) {
+                    moveable_right = 0;
+                }
+                i++;
+            }
+            if (moveable_right === 1) {
+                var can_move = 1;
+                for (var i = 0; i < shape.length; i++) {
+                    if (block[0] + shape[i][0] >= columns - 1) {
+                        can_move = 0;
+                    }
+                }
+                if (can_move === 1) {
+                    block[0] += 1;
+                }
+            }
+            to_move_right = false;
+        }
+    } 
+strokeWeight(1);
+};
+
+
+draw = function () {
+    if (currentScene === 0) {
+        drawScene0();
+    } else if (currentScene === 1) {
+        drawScene1();
+    } if (gameover) {
+         drawScene2();
+    }
+};
